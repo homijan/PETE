@@ -18,8 +18,11 @@
 #define MFEM_NTH_EOS
 
 #include "mfem.hpp"
+#include "chereos.hpp"
 
 #ifdef MFEM_USE_MPI
+
+using namespace hereos;
 
 namespace mfem
 {
@@ -51,6 +54,7 @@ public:
    // Get Thermodynamic values.
    // Euler hydrodynamics using rho, v, eps.
    virtual double GetP_eps(double index, double rho, double eps) = 0;
+   virtual double GetGamma_eps(double index, double rho, double eps) = 0;
    virtual double GetSoundSpeed_eps(double index, double rho, double eps) = 0;
    // Euler hydrodynamics using rho, v, Te, Ti.
    virtual double GetElectronDensity(double index, double rho, double Te) = 0;
@@ -84,6 +88,7 @@ public:
    // Get Thermodynamic values.
    // Euler hydrodynamics using rho, v, eps.
    virtual double GetP_eps(double index, double rho, double eps);
+   virtual double GetGamma_eps(double index, double rho, double eps);
    virtual double GetSoundSpeed_eps(double index, double rho, double eps);
    // Euler hydrodynamics using rho, v, Te, Ti.
    virtual double GetElectronDensity(double index, double rho, double Te) 
@@ -102,6 +107,39 @@ public:
    // IG specific functions.
    void SetZbar(double Zbar_) { Zbar = Zbar_; }
    void SetIonMass(double mi_) { mi = mi_; }
+};
+
+// The simplest equation of state to be used in hydrodynamic simulations. 
+// Usually it is referred to as ideal gas.
+class HEREOS : public EOS
+{
+protected:
+public:
+   HEREOS(double me_, double kB_, vector<const char*> mat_names, 
+          const char *HerEOSpath) : EOS(me_, kB_, 1.0, 1.0, 1.0) 
+   { 
+      hereos::her_eos = new hereos::HerEOS(mat_names.data(), mat_names.size(),
+                                           HerEOSpath); 
+   }
+   // Get Thermodynamic values.
+   // Euler hydrodynamics using rho, v, eps.
+   virtual double GetT_eps(double index, double rho, double eps);
+   virtual double GetP_eps(double index, double rho, double eps);
+   virtual double GetGamma_eps(double index, double rho, double eps);
+   virtual double GetSoundSpeed_eps(double index, double rho, double eps);
+   // Euler hydrodynamics using rho, v, Te, Ti.
+   virtual double GetElectronDensity(double index, double rho, double Te) { }
+   virtual double GetZbar(double index, double rho, double Te) { }
+   virtual double GetPe(double index, double rho, double Te) { }
+   virtual double GetPi(double index, double rho, double Ti) { }
+   virtual double GetEe(double index, double rho, double Te) { }
+   virtual double GetEi(double index, double rho, double Ti) { }
+   virtual double GetdEedTe(double index, double rho, double Te) { }
+   virtual double GetdEidTi(double index, double rho, double Ti) { }
+   virtual double GetdEedrho(double index, double rho, double Te) { }
+   virtual double GetdEidrho(double index, double rho, double Ti) { }
+   virtual double GetSoundSpeed(double index, double rho, double Te, double Ti) 
+   { }
 };
 
 // Generic hydro coefficient.

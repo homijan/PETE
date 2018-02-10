@@ -75,11 +75,12 @@ int main(int argc, char *argv[])
    // Print the banner.
    if (mpi.Root()) { display_banner(cout); }
 
+/*
    // HerEOS linking test ///////////////////////////////////////////////
    const char *HerEOSpath = "../hereos/";
    vector<const char*> mat_names;
    mat_names.push_back("Al");
-   mat_names.push_back("H");   
+   mat_names.push_back("H"); 
    hereos::her_eos = new hereos::HerEOS(mat_names.data(), mat_names.size(), 
                                         HerEOSpath);
    // Test thermodynamic values.
@@ -99,6 +100,7 @@ int main(int argc, char *argv[])
    }
 
    //////////////////////////////////////////////////////////////////////
+*/
 
    // Parse command-line options.
    const char *mesh_file = "data/square01_quad.mesh";
@@ -381,8 +383,15 @@ int main(int argc, char *argv[])
    if (problem == 1)
    {
       // For the Sedov test, we use a delta function at the origin.
-      DeltaCoefficient e_coeff(0, 0, 0.25);
-      l2_e.ProjectCoefficient(e_coeff);
+      //DeltaCoefficient e_coeff(0, 0, 0.25);
+	  //l2_e.ProjectCoefficient(e_coeff);
+	  // Hydrogen explosion.
+	  DeltaCoefficient e_coeff(0, 0, 1.25e12);
+      l2_e.ProjectCoefficient(e_coeff); 
+      ConstantCoefficient c_coeff(1e13);
+      ParGridFunction l2_c(&l2_fes);
+      l2_c.ProjectCoefficient(c_coeff);
+	  l2_e += l2_c;
    }
    else
    {
@@ -408,10 +417,24 @@ int main(int argc, char *argv[])
 
    // Create a PETELagHydroOperator using an ideal gas equation of state.
    const double kB = 1.0, me = 1.0; 
-   nth::IGEOS igeos(me, kB);
+   //nth::IGEOS igeos(me, kB);
+   const char *HerEOSpath = "../hereos/";
+   vector<const char*> mat_names;
+   mat_names.push_back("Al");
+   //mat_names.push_back("H");
+   nth::HEREOS heos(me, kB, mat_names, HerEOSpath);
+   cout << "heos - material: " << mat_names[0] << endl << flush;
+   cout << "gamma(max(eps)), T(max(eps)): " 
+        << heos.GetGamma_eps(1.0, rho.Max(), e_gf.Max()) << ", "
+        << heos.GetT_eps(1.0, rho.Max(), e_gf.Max()) << endl << flush;
+   cout << "gamma(min(eps)), T(min(eps)): " 
+        << heos.GetGamma_eps(1.0, rho.Min(), e_gf.Min()) << ", "
+        << heos.GetT_eps(1.0, rho.Min(), e_gf.Min()) << endl << flush;
+
+   nth::EOS *eos = &heos; //&igeos;
    nth::PETELagHydroOperator oper(S.Size(), H1FESpace, L2FESpace, ess_tdofs, 
                                   rho, source, cfl, material_pcf, visc, 
-                                  p_assembly, cg_tol, cg_max_iter, &igeos);
+                                  p_assembly, cg_tol, cg_max_iter, eos);
 
    socketstream vis_rho, vis_v, vis_e;
    char vishost[] = "localhost";
@@ -679,8 +702,12 @@ double e0(const Vector &x)
          return val/denom;
       }
       case 1: return 0.0; // This case in initialized in main().
-      case 2: if (x(0) < 0.5) { return 1.0 / rho0(x) / (gamma(x) - 1.0); }
-         else { return 0.1 / rho0(x) / (gamma(x) - 1.0); }
+//      case 2: if (x(0) < 0.5) { return 1.0 / rho0(x) / (gamma(x) - 1.0); }
+//         else { return 0.1 / rho0(x) / (gamma(x) - 1.0); }
+      // WDM
+      case 2: if (x(0) < 0.5)
+         { return 1.0 / rho0(x) / (gamma(x) - 1.0) + 1e13; }
+         else { return 0.1 / rho0(x) / (gamma(x) - 1.0) + 1e13; }
       case 3: if (x(0) > 1.0) { return 0.1 / rho0(x) / (gamma(x) - 1.0); }
          else { return 1.0 / rho0(x) / (gamma(x) - 1.0); }
       default: MFEM_ABORT("Bad number given for problem id!"); return 0.0;

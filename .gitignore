@@ -1,3 +1,5 @@
+## Avoid binary residuals.
+*.o
 ## Avoid vim .swp
 *.swp
 ## Avoid temporary C7 results directed by default to ./results/tmp
