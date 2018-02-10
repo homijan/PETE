@@ -70,6 +70,13 @@ LAGHOS_DIR1 := $(LAGHOS_DIR)
 LAGHOS_DIR2 := $(realpath $(LAGHOS_DIR))
 LAGHOS_INCFLAGS  = -I$(LAGHOS_DIR)
 
+# Use the HerEOS build directory
+HEREOS_DIR = ../hereos
+HEREOS_DIR1 := $(HEREOS_DIR)
+HEREOS_DIR2 := $(realpath $(HEREOS_DIR))
+HEREOS_INCFLAGS  = -I$(HEREOS_DIR)/src
+HEREOS_LIBS = -L$(HEREOS_DIR)/libs -lhereos -lfeos -L/usr/lib -lnetcdff -lnetcdf -lgfortran
+
 # Use the compiler used by MFEM. Get the compiler and the options for compiling
 # and linking from MFEM's config.mk. (Skip this if the target does not require
 # building.)
@@ -100,8 +107,8 @@ ifneq ($(LAGHOS_DEBUG),$(MFEM_DEBUG))
    endif
 endif
 
-LAGHOS_FLAGS = $(CPPFLAGS) $(CXXFLAGS) $(MFEM_INCFLAGS) $(LAGHOS_INCFLAGS)
-LAGHOS_LIBS = $(MFEM_LIBS)
+LAGHOS_FLAGS = $(CPPFLAGS) $(CXXFLAGS) $(MFEM_INCFLAGS) $(LAGHOS_INCFLAGS) $(HEREOS_INCFLAGS)
+LAGHOS_LIBS = $(MFEM_LIBS) $(HEREOS_LIBS)
 
 ifeq ($(LAGHOS_DEBUG),YES)
    LAGHOS_FLAGS += -DLAGHOS_DEBUG
@@ -114,7 +121,7 @@ Ccc  = $(strip $(CC) $(CFLAGS) $(GL_OPTS))
 SOURCE_FILES = pete.cpp eos.cpp $(LAGHOS_DIR)/laghos_solver.cpp $(LAGHOS_DIR)/laghos_assembly.cpp
 OBJECT_FILES1 = $(SOURCE_FILES:.cpp=.o)
 OBJECT_FILES = $(OBJECT_FILES1:.c=.o)
-HEADER_FILES = pete_solver.hpp eos.hpp $(LAGHOS_DIR)/laghos_solver.hpp $(LAGHOS_DIR)/laghos_assembly.hpp
+HEADER_FILES = pete_solver.hpp eos.hpp $(LAGHOS_DIR)/laghos_solver.hpp $(LAGHOS_DIR)/laghos_assembly.hpp $(HEREOS_DIR)/src/chereos.hpp
 
 # Targets
 

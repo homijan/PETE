@@ -1,3 +1,5 @@
+## Avoid vim .swp
+*.swp
 ## Avoid temporary C7 results directed by default to ./results/tmp
 results/tmp/*.*
 ## Core latex/pdflatex auxiliary files:

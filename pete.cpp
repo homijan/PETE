@@ -52,6 +52,7 @@
 
 
 #include "pete_solver.hpp"
+#include "chereos.hpp"
 #include <memory>
 #include <iostream>
 #include <fstream>
@@ -73,6 +74,31 @@ int main(int argc, char *argv[])
 
    // Print the banner.
    if (mpi.Root()) { display_banner(cout); }
+
+   // HerEOS linking test ///////////////////////////////////////////////
+   const char *HerEOSpath = "../hereos/";
+   vector<const char*> mat_names;
+   mat_names.push_back("Al");
+   mat_names.push_back("H");   
+   hereos::her_eos = new hereos::HerEOS(mat_names.data(), mat_names.size(), 
+                                        HerEOSpath);
+   // Test thermodynamic values.
+   double hrho = 1.4;
+   double hT = 12.3;
+   for (int hindex = 1; hindex <= mat_names.size(); hindex++)
+   {
+       double hZbar = hereos::her_eos->Get_Zbar(hindex, hrho, hT);
+       double hpe = hereos::her_eos->Get_pe(hindex, hrho, hT);
+       double hepse = hereos::her_eos->Get_epse(hindex, hrho, hT);
+       double hpi = hereos::her_eos->Get_pi(hindex, hrho, hT);
+       double hepsi = hereos::her_eos->Get_epsi(hindex, hrho, hT);
+       double hgamma = 1.0 + (hpe + hpi) / hrho / (hepse + hepsi);
+       cout << "material: " << mat_names[hindex-1] << endl << flush;
+       cout << "Zbar, gamma at (rho, T): " << hZbar << ", " << hgamma 
+            << " at (" << hrho << ", " << hT << ")" << endl << flush;
+   }
+
+   //////////////////////////////////////////////////////////////////////
 
    // Parse command-line options.
    const char *mesh_file = "data/square01_quad.mesh";
