@@ -4,7 +4,9 @@ Plasma Euler and Transport Equations - new generation MHD code.
 The hydrodynamic solver of PETE inherits from [Laghos](https://github.com/CEED/Laghos), 
 which solves the time-dependent Euler equations of compressible gas dynamics 
 in a moving Lagrangian frame using unstructured high-order finite element 
-spatial discretization and explicit high-order time-stepping.
+spatial discretization and explicit high-order time-stepping. Further, PETE
+links a general equation of state library [HerEOS](https://bitbucket.org/Zemaster/hereos): a Framework for Consistent Treatment of the Equation of State in ALE Hydrodynamics. 
+In the close future PETE will be also equipped with [C7](https://github.com/homijan/C7): An efficient 7D plasma kinetic code born to be coupled with multi-material ALE hydrodynamics.
 
 The Laghos miniapp is part of the [CEED software suite](http://ceed.exascaleproject.org/software) and is based on the discretization method described in 
 the following article:
@@ -33,6 +35,7 @@ PETE has the following external dependencies:
   https://bitbucket.org/Zemaster/hereos
 
 To build PETE, download/clone necessary libraries.
+
 Clone PETE:
 ```sh
 ~> git clone https://github.com/homijan/PETE.git
@@ -45,7 +48,7 @@ Clone MFEM:
 ```sh
 ~> git clone git@github.com:mfem/mfem.git ./mfem
 ```
-Clone HEREOS:
+Clone HerEOS:
 ```sh
 ~> git clone https://bitbucket.org/Zemaster/hereos.git
 ```
@@ -104,7 +107,7 @@ build respectively. See `make help` for additional options.
 
 #### 1D
 
-###### IG
+###### Ideal Gas
 
 Sod shock tube
 ```sh
@@ -138,7 +141,7 @@ mpirun -np 8 pete -p 4 -m data/segment01.mesh -rs 4 -tf 1e-6 -vis -fa -ot 3 -ok 
 
 #### 2D
 
-###### IG
+###### Ideal Gas
 
 Sedov blast
 ```sh
@@ -171,7 +174,7 @@ mpirun -np 8 pete -p 5 -m data/rectangle01_quad.mesh -rs 2 -tf 2.5 -cfl 0.025 -v
 
 #### 3D
 
-###### IG
+###### Ideal Gas
 
 Sedov blast
 ```sh
