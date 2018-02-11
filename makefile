@@ -65,7 +65,7 @@ MFEM_DIR1 := $(MFEM_DIR)
 MFEM_DIR2 := $(realpath $(MFEM_DIR))
 
 # Use the Laghos build directory
-LAGHOS_DIR = ../NTH-Laghos
+LAGHOS_DIR = ../Laghos
 LAGHOS_DIR1 := $(LAGHOS_DIR)
 LAGHOS_DIR2 := $(realpath $(LAGHOS_DIR))
 LAGHOS_INCFLAGS  = -I$(LAGHOS_DIR)
@@ -153,7 +153,7 @@ include $(TEST_MK)
 # Testing: Specific execution options
 RUN_MPI = $(MFEM_MPIEXEC) $(MFEM_MPIEXEC_NP) 4
 test: pete
-	@$(call mfem-test,$<, $(RUN_MPI), Laghos miniapp,\
+	@$(call mfem-test,$<, $(RUN_MPI), PETE code,\
 	-p 0 -m data/square01_quad.mesh -rs 3 -tf 0.1)
 # Testing: "test" target and mfem-test* variables are defined in MFEM's
 # config/test.mk

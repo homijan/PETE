@@ -121,6 +121,8 @@ int main(int argc, char *argv[])
    bool gfprint = false;
    const char *basename = "results/Laghos";
    int partition_type = 111;
+   bool HerEOS = false;
+   const char *material_name = "H";
 
    OptionsParser args(argc, argv);
    args.AddOption(&mesh_file, "-m", "--mesh",
@@ -169,6 +171,11 @@ int main(int argc, char *argv[])
                   "of zones in each direction, e.g., the number of zones in direction x\n\t"
                   "must be divisible by the number of MPI tasks in direction x.\n\t"
                   "Available options: 11, 21, 111, 211, 221, 311, 321, 322, 432.");
+   args.AddOption(&HerEOS, "-heos", "--hereos", "-no-heos",
+                  "--no-hereos",
+                  "Enable or disable HerEOS. If disabled standard ideal gas EOS is used.");
+   args.AddOption(&material_name, "-mn", "--materialname",
+                  "Name of the material to be loaded by HerEOS.");
    args.Parse();
    if (!args.Good())
    {
@@ -281,6 +288,34 @@ int main(int argc, char *argv[])
    if (myid == 0)
    { cout << "Zones min/max: " << nzones_min << " " << nzones_max << endl; }
 
+   // Prepare an equation of state.
+   nth::EOS *eos = NULL;
+   nth::IGEOS *igeos = NULL;
+   nth::HEREOS *heos = NULL;
+   const double kB = 1.0, me = 1.0; 
+   if (HerEOS) 
+   {
+      const char *HerEOSpath = "../hereos/"; 
+      vector<const char*> mat_names;
+      //mat_names.push_back("Al");
+      mat_names.push_back(material_name);
+      heos = new nth::HEREOS(me, kB, mat_names, HerEOSpath);
+      //if (mpi.Root())
+      //{
+      //   cout << "heos - materials: "; 
+      //   for (int i = 0; i < mat_names.size(); i++) { cout << mat_names[i]; }
+      //   cout << endl << flush;
+      //}
+      // Assign heos to the general eos.
+      eos = heos;
+   }
+   else
+   {
+      // Note that the IGEOS provides a simplified relation e = kB * T.
+      igeos = new nth::IGEOS(me, kB);  
+      // Assign ideal gas to the general eos;
+      eos = igeos; 
+   }
 
    // Define the parallel finite element spaces. We use:
    // - H1 (Gauss-Lobatto, continuous) for position and velocity.
@@ -377,31 +412,75 @@ int main(int argc, char *argv[])
    FunctionCoefficient rho_coeff(hydrodynamics::rho0);
    L2_FECollection l2_fec(order_e, pmesh->Dimension());
    ParFiniteElementSpace l2_fes(pmesh, &l2_fec);
-   ParGridFunction l2_rho(&l2_fes), l2_e(&l2_fes);
+   ParGridFunction l2_rho(&l2_fes), l2_T(&l2_fes), l2_e(&l2_fes);
    l2_rho.ProjectCoefficient(rho_coeff);
    rho.ProjectGridFunction(l2_rho);
+
+   // Define a space-dependent material index over the Lagrangian mesh.
+   Coefficient *material_pcf = new FunctionCoefficient(hydrodynamics::gamma);
+   // Define a thermodynamic coefficient providing conversion from T to e.
+   nth::EfromTCoefficient EfromT_cf(rho, l2_T, v_gf, material_pcf, eos);
+
    if (problem == 1)
    {
       // For the Sedov test, we use a delta function at the origin.
       //DeltaCoefficient e_coeff(0, 0, 0.25);
 	  //l2_e.ProjectCoefficient(e_coeff);
-	  // Hydrogen explosion.
-	  DeltaCoefficient e_coeff(0, 0, 1.25e12);
-      l2_e.ProjectCoefficient(e_coeff); 
-      ConstantCoefficient c_coeff(1e13);
+	  // Aluminum explosion.
+	  //DeltaCoefficient e_coeff(0, 0, 1.25e12);
+      //l2_e.ProjectCoefficient(e_coeff); 
+      //ConstantCoefficient c_coeff(1e13);
+      //ParGridFunction l2_c(&l2_fes);
+      //l2_c.ProjectCoefficient(c_coeff);
+	  //l2_e += l2_c;
+      // Define a temperature coefficient.
+	  // Notice, that We use a standard internal energy input e0.
+	  DeltaCoefficient T_coeff(0, 0, 0.25);
+      // Set the temperature grid function accordingly.
+	  l2_T.ProjectCoefficient(T_coeff);
+	  // Project thermodynamic internal energy e(rho, l2_T) given by eos.
+	  l2_e.ProjectCoefficient(EfromT_cf);
+	  //l2_e = l2_T;
+   }
+   else if (problem == 4)
+   {
+      // For the Sedov test, we use a delta function at the origin.
+	  // Aluminum explosion.
+      // Define a temperature coefficient.
+      DeltaCoefficient T_coeff(0, 0, 0.3);
+      // Set the temperature grid function accordingly.
+      l2_T.ProjectCoefficient(T_coeff); 
+	  // Project thermodynamic internal energy e(rho, l2_T) given by eos.
+	  l2_e.ProjectCoefficient(EfromT_cf);
+      double e_max = l2_e.Max(), e_max_glob;
+      MPI_Allreduce(&e_max, &e_max_glob, 1, MPI_DOUBLE, MPI_MAX, 
+                    pmesh->GetComm());
+	  ConstantCoefficient c_coeff(0.015 * e_max_glob);
       ParGridFunction l2_c(&l2_fes);
       l2_c.ProjectCoefficient(c_coeff);
-	  l2_e += l2_c;
+      l2_e += l2_c;
+	  //l2_e = l2_T;
    }
    else
    {
-      FunctionCoefficient e_coeff(e0);
-      l2_e.ProjectCoefficient(e_coeff);
+      // Define a temperature coefficient.
+	  // Notice, that We use a standard internal energy input e0.
+	  FunctionCoefficient T_coeff(e0);
+      // Set the temperature grid function accordingly.
+	  l2_T.ProjectCoefficient(T_coeff);
+	  // Project thermodynamic internal energy e(rho, l2_T) given by eos.
+	  l2_e.ProjectCoefficient(EfromT_cf);
+	  //l2_e = l2_T;
    }
    e_gf.ProjectGridFunction(l2_e);
 
-   // Space-dependent ideal gas coefficient over the Lagrangian mesh.
-   Coefficient *material_pcf = new FunctionCoefficient(hydrodynamics::gamma);
+   // EOS check.
+   cout << "gamma(max(eps)), T(max(eps)): " 
+        << eos->GetGamma_eps(1.0, rho.Max(), e_gf.Max()) << ", "
+        << eos->GetT_eps(1.0, rho.Max(), e_gf.Max()) << endl << flush;
+   cout << "gamma(min(eps)), T(min(eps)): " 
+        << eos->GetGamma_eps(1.0, rho.Min(), e_gf.Min()) << ", "
+        << eos->GetT_eps(1.0, rho.Min(), e_gf.Min()) << endl << flush;
 
    // Additional details, depending on the problem.
    int source = 0; bool visc;
@@ -412,26 +491,12 @@ int main(int argc, char *argv[])
       case 1: visc = true; break;
       case 2: visc = true; break;
       case 3: visc = true; break;
-      default: MFEM_ABORT("Wrong problem specification!");
+      case 4: visc = true; break;
+      case 5: visc = true; break;
+	  default: MFEM_ABORT("Wrong problem specification!");
    }
 
-   // Create a PETELagHydroOperator using an ideal gas equation of state.
-   const double kB = 1.0, me = 1.0; 
-   //nth::IGEOS igeos(me, kB);
-   const char *HerEOSpath = "../hereos/";
-   vector<const char*> mat_names;
-   mat_names.push_back("Al");
-   //mat_names.push_back("H");
-   nth::HEREOS heos(me, kB, mat_names, HerEOSpath);
-   cout << "heos - material: " << mat_names[0] << endl << flush;
-   cout << "gamma(max(eps)), T(max(eps)): " 
-        << heos.GetGamma_eps(1.0, rho.Max(), e_gf.Max()) << ", "
-        << heos.GetT_eps(1.0, rho.Max(), e_gf.Max()) << endl << flush;
-   cout << "gamma(min(eps)), T(min(eps)): " 
-        << heos.GetGamma_eps(1.0, rho.Min(), e_gf.Min()) << ", "
-        << heos.GetT_eps(1.0, rho.Min(), e_gf.Min()) << endl << flush;
-
-   nth::EOS *eos = &heos; //&igeos;
+   // Create a PETELagHydroOperator using a general equation of state.
    nth::PETELagHydroOperator oper(S.Size(), H1FESpace, L2FESpace, ess_tdofs, 
                                   rho, source, cfl, material_pcf, visc, 
                                   p_assembly, cg_tol, cg_max_iter, eos);
@@ -624,6 +689,8 @@ int main(int argc, char *argv[])
    delete ode_solver;
    delete pmesh;
    delete material_pcf;
+   delete igeos;
+   delete heos;
 
    return 0;
 }
@@ -644,6 +711,9 @@ double rho0(const Vector &x)
          else { return 0.1; }
       case 3: if (x(0) > 1.0 && x(1) <= 1.5) { return 1.0; }
          else { return 0.125; }
+      case 4: return 1.0;
+      case 5: if (x(0) > 1.0 && x(1) <= 1.5) { return 1.0; }
+         else { return 0.125; }     
       default: MFEM_ABORT("Bad number given for problem id!"); return 0.0;
    }
 }
@@ -657,6 +727,9 @@ double gamma(const Vector &x)
       case 2: return 1.4;
       case 3: if (x(0) > 1.0 && x(1) <= 1.5) { return 1.4; }
          else { return 1.5; }
+      case 4: return 1.4;
+      case 5: if (x(0) > 1.0 && x(1) <= 1.5) { return 1.4; }
+         else { return 1.1; }
       default: MFEM_ABORT("Bad number given for problem id!"); return 0.0;
    }
 }
@@ -678,6 +751,8 @@ void v0(const Vector &x, Vector &v)
       case 1: v = 0.0; break;
       case 2: v = 0.0; break;
       case 3: v = 0.0; break;
+      case 4: v = 0.0; break;
+      case 5: v = 0.0; break;
       default: MFEM_ABORT("Bad number given for problem id!");
    }
 }
@@ -702,13 +777,16 @@ double e0(const Vector &x)
          return val/denom;
       }
       case 1: return 0.0; // This case in initialized in main().
-//      case 2: if (x(0) < 0.5) { return 1.0 / rho0(x) / (gamma(x) - 1.0); }
-//         else { return 0.1 / rho0(x) / (gamma(x) - 1.0); }
+      case 2: if (x(0) < 0.5) { return 1.0 / rho0(x) / (gamma(x) - 1.0); }
+         else { return 0.1 / rho0(x) / (gamma(x) - 1.0); }
       // WDM
-      case 2: if (x(0) < 0.5)
-         { return 1.0 / rho0(x) / (gamma(x) - 1.0) + 1e13; }
-         else { return 0.1 / rho0(x) / (gamma(x) - 1.0) + 1e13; }
+//      case 2: if (x(0) < 0.5)
+//         { return 1.0 / rho0(x) / (gamma(x) - 1.0) + 1e13; }
+//         else { return 0.1 / rho0(x) / (gamma(x) - 1.0) + 1e13; }
       case 3: if (x(0) > 1.0) { return 0.1 / rho0(x) / (gamma(x) - 1.0); }
+         else { return 1.0 / rho0(x) / (gamma(x) - 1.0); }
+      case 4: return 0.0; // This case in initialized in main().
+      case 5: if (x(0) > 1.0) { return 0.1 / rho0(x) / (gamma(x) - 1.0); }
          else { return 1.0 / rho0(x) / (gamma(x) - 1.0); }
       default: MFEM_ABORT("Bad number given for problem id!"); return 0.0;
    }

@@ -44,21 +44,24 @@ public:
        double hbar_ = 1.0, double G_ = 1.0)
       { kB = kB_, c = c_, hbar = hbar_, G = G_; me = me_; }
    // Get fundamental physical constants.
-   double GetkB() {return kB; }
-   double Getc() {return c; }
-   double Getkhbar() {return hbar; }
-   double GetG() {return G; }
-   double Getme() {return me; }
+   double GetkB() { return kB; }
+   double Getc() { return c; }
+   double Gethbar() { return hbar; }
+   double GetG() { return G; }
+   double Getme() { return me; }
    // Thermal velocity.
    double GetvTe(double Te) { return sqrt(kB * Te / me); }
    // Get Thermodynamic values.
    // Euler hydrodynamics using rho, v, eps.
+   virtual double GetT_eps(double index, double rho, double eps) = 0;
    virtual double GetP_eps(double index, double rho, double eps) = 0;
    virtual double GetGamma_eps(double index, double rho, double eps) = 0;
    virtual double GetSoundSpeed_eps(double index, double rho, double eps) = 0;
    // Euler hydrodynamics using rho, v, Te, Ti.
    virtual double GetElectronDensity(double index, double rho, double Te) = 0;
    virtual double GetZbar(double index, double rho, double Te) = 0;
+   virtual double GetE(double index, double rho, double T) = 0;
+   virtual double GetP(double index, double rho, double T) = 0;
    virtual double GetPe(double index, double rho, double Te) = 0;
    virtual double GetPi(double index, double rho, double Ti) = 0;
    virtual double GetEe(double index, double rho, double Te) = 0;
@@ -87,6 +90,7 @@ public:
    { Zbar = 1.0; mi = 1.0; }
    // Get Thermodynamic values.
    // Euler hydrodynamics using rho, v, eps.
+   virtual double GetT_eps(double index, double rho, double eps);
    virtual double GetP_eps(double index, double rho, double eps);
    virtual double GetGamma_eps(double index, double rho, double eps);
    virtual double GetSoundSpeed_eps(double index, double rho, double eps);
@@ -94,6 +98,8 @@ public:
    virtual double GetElectronDensity(double index, double rho, double Te) 
    { return rho / mi * Zbar; }
    virtual double GetZbar(double index, double rho, double Te) { return Zbar; }
+   virtual double GetE(double index, double rho, double T);
+   virtual double GetP(double index, double rho, double T) { }
    virtual double GetPe(double index, double rho, double Te) { }
    virtual double GetPi(double index, double rho, double Ti) { }
    virtual double GetEe(double index, double rho, double Te) { }
@@ -130,6 +136,8 @@ public:
    // Euler hydrodynamics using rho, v, Te, Ti.
    virtual double GetElectronDensity(double index, double rho, double Te) { }
    virtual double GetZbar(double index, double rho, double Te) { }
+   virtual double GetE(double index, double rho, double T);
+   virtual double GetP(double index, double rho, double T) { }
    virtual double GetPe(double index, double rho, double Te) { }
    virtual double GetPi(double index, double rho, double Ti) { }
    virtual double GetEe(double index, double rho, double Te) { }
@@ -162,6 +170,20 @@ public:
    virtual void SetEOS(EOS *eos_) { eos = eos_; }
 
    virtual ~HydroCoefficient() {};
+};
+
+// Generic hydro coefficient.
+class EfromTCoefficient : public HydroCoefficient
+{
+protected:
+public:
+   EfromTCoefficient(ParGridFunction &rho_, ParGridFunction &Te_,
+                    ParGridFunction &v_, Coefficient *material_, EOS *eos_)
+      : HydroCoefficient(rho_, Te_, v_, material_, eos_) { }
+   virtual double Eval(ElementTransformation &T,
+      const IntegrationPoint &ip);
+
+   virtual ~EfromTCoefficient() {};
 };
 
 } // namespace nth
