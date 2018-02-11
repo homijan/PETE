@@ -5,8 +5,8 @@ The hydrodynamic solver of PETE inherits from [Laghos](https://github.com/CEED/L
 which solves the time-dependent Euler equations of compressible gas dynamics 
 in a moving Lagrangian frame using unstructured high-order finite element 
 spatial discretization and explicit high-order time-stepping. Further, PETE
-links a general equation of state library [HerEOS](https://bitbucket.org/Zemaster/hereos): a Framework for Consistent Treatment of the Equation of State in ALE Hydrodynamics. 
-In the close future PETE will be also equipped with [C7](https://github.com/homijan/C7): An efficient 7D plasma kinetic code born to be coupled with multi-material ALE hydrodynamics.
+links a general equation of state library [HerEOS](https://bitbucket.org/Zemaster/hereos): *a Framework for Consistent Treatment of the Equation of State in ALE Hydrodynamics*. 
+In the close future PETE will be also equipped with [C7](https://github.com/homijan/C7): *An efficient 7D plasma kinetic code born to be coupled with multi-material ALE hydrodynamics*.
 
 The Laghos miniapp is part of the [CEED software suite](http://ceed.exascaleproject.org/software) and is based on the discretization method described in 
 the following article:
@@ -52,6 +52,13 @@ Clone HerEOS:
 ```sh
 ~> git clone https://bitbucket.org/Zemaster/hereos.git
 ```
+It is also recommended to clone GLVis:
+```sh
+~> git clone https://github.com/GLVis/glvis.git
+```
+Lightweight OpenGL tool for accurate and flexible finite element visualization.
+For building instructions, see the file INSTALL.
+
 Download *hypre* and METIS from the links above
 and put everything on the same level as the `PETE` directory:
 ```sh
